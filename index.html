@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reef Spotter</title>
+<style>
+:root{--ink:#123047;--foam:#eafcff;--coral:#ff7a59;--coralD:#d9583a;--sun:#ffc94d;--danger:#e8553e;--sea:#9fd8ea}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(circle at 50% 0%,#1d6f9e 0%,#0e4467 45%,#072338 100%);color:var(--foam);display:flex;justify-content:center;min-height:100vh;min-height:100dvh;overflow-x:hidden}
+#app{width:100%;max-width:560px;padding:10px 10px 16px;display:flex;flex-direction:column;align-items:center}
+.screen{display:none;width:100%;flex-direction:column;align-items:center;text-align:center;gap:14px}
+.screen.on{display:flex}
+h1{margin:6px 0 0;font-size:clamp(2.1rem,9vw,3rem);letter-spacing:.5px;color:var(--sun);text-shadow:0 3px 0 #b5641f}
+h2{margin:0;font-size:clamp(1.5rem,6.5vw,2rem)}
+p{margin:0;font-size:1.1rem;line-height:1.4;max-width:24em}
+.btn{min-height:56px;min-width:56px;padding:0 30px;border:none;border-radius:30px;background:var(--coral);color:#fff;font:inherit;font-size:1.3rem;font-weight:800;cursor:pointer;box-shadow:0 5px 0 var(--coralD);touch-action:manipulation}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--coralD)}
+.btn.ghost{background:transparent;border:2px solid var(--sea);box-shadow:none;color:var(--foam);font-size:1.05rem;min-height:50px}
+.label{font-size:1rem;opacity:.85;margin-top:4px}
+.count{display:flex;gap:12px}
+.count button{width:62px;height:62px;border-radius:50%;border:3px solid var(--sea);background:rgba(255,255,255,.06);color:#fff;font:inherit;font-size:1.6rem;font-weight:800;cursor:pointer;touch-action:manipulation}
+.count button.sel{background:var(--sun);border-color:var(--sun);color:var(--ink);transform:scale(1.08)}
+.logo{width:min(70vw,260px);height:auto}
+.hud{display:flex;gap:8px;width:100%;justify-content:space-between;align-items:center}
+.chip{background:rgba(255,255,255,.13);border-radius:20px;padding:8px 14px;font-weight:700;font-size:1rem;white-space:nowrap}
+.chip.time{background:var(--sun);color:var(--ink);font-variant-numeric:tabular-nums;min-width:86px}
+.find{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);border-radius:16px;padding:4px 14px 4px 6px;width:100%}
+.find svg{width:62px;height:56px;flex:none;background:rgba(255,255,255,.12);border-radius:12px}
+.find .fname{font-size:1.15rem;font-weight:800;text-align:left}
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:14px;padding:3px 10px 3px 6px;font-weight:900;font-size:.85rem;letter-spacing:1px}
+.badge svg{width:18px;height:18px;background:none!important}
+.badge.rare{background:var(--sun);color:var(--ink)}
+.badge.danger{background:var(--danger);color:#fff}
+#sceneWrap{position:relative;width:min(100%,calc((100vh - 150px) * 1.25));width:min(100%,calc((100dvh - 150px) * 1.25));aspect-ratio:400/320;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#scene{width:100%;height:100%;display:block;cursor:pointer}
+#toast{position:absolute;left:50%;top:14%;transform:translate(-50%,0);background:#fff;color:var(--ink);font-weight:800;padding:10px 18px;border-radius:22px;font-size:1.05rem;opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap}
+#toast.show{opacity:1}
+.ripple{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border:3px solid #fff;border-radius:50%;pointer-events:none;animation:rip .6s ease-out forwards}
+@keyframes rip{from{transform:scale(.3);opacity:.9}to{transform:scale(1.4);opacity:0}}
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:16px;z-index:5}
+.overlay.on{display:flex}
+.overlay.solid{background:radial-gradient(circle at 50% 20%,#1d6f9e,#072338)}
+.overlay.soft{background:rgba(7,35,56,.55)}
+.card{background:#fff8ec;color:var(--ink);border-radius:26px;padding:22px 20px 24px;width:min(100%,400px);display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.35);animation:cardIn .35s ease-out}
+@keyframes cardIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.card h2{color:var(--ink)}
+.card p{color:#2a4a60}
+.bigicon{width:150px;height:135px;background:radial-gradient(circle,#bfeffa,#5fc3dd);border-radius:50%}
+.pill{background:#e3f4f9;border-radius:14px;padding:5px 12px;font-weight:700;color:#24607d}
+.yay{animation:bounce .7s ease-out}
+@keyframes bounce{0%{transform:scale(.5)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+.results{width:100%;max-width:360px;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.12);border-radius:16px;padding:12px 16px;font-size:1.2rem;font-weight:700}
+.row.win{background:var(--sun);color:var(--ink)}
+.row .who{display:flex;align-items:center;gap:8px}
+.row svg{width:28px;height:28px}
+.btnrow{display:flex;flex-direction:column;gap:12px;align-items:center;margin-top:6px}
+/* scene animation */
+.bob{animation:bob 3.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.sway{transform-box:fill-box;transform-origin:50% 100%;animation:sway 4s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+.bub{animation:rise linear infinite}
+@keyframes rise{from{transform:translateY(0);opacity:.7}to{transform:translateY(-300px);opacity:0}}
+.pop{transform-box:fill-box;transform-origin:center}
+.pop.found{animation:pop .8s ease-out forwards}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.55)}70%{transform:scale(1.25)}100%{transform:scale(1.35)}}
+.ring{transform-box:fill-box;transform-origin:center;animation:ring .9s ease-out forwards}
+@keyframes ring{from{transform:scale(.4);opacity:1}to{transform:scale(1.8);opacity:0}}
+.spark{animation:spark .8s ease-out forwards}
+@keyframes spark{from{transform:translate(0,0);opacity:1}to{transform:translate(var(--dx),var(--dy));opacity:0}}
+.hint{animation:hint 1.6s ease-in-out infinite}
+@keyframes hint{0%,100%{opacity:0}50%{opacity:.55}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- START -->
+  <div id="start" class="screen on">
+    <h1>Reef Spotter</h1>
+    <svg class="logo" viewBox="0 0 260 150" aria-hidden="true">
+      <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fe0f0"/><stop offset="1" stop-color="#1b78b0"/></linearGradient></defs>
+      <path d="M50 20 H210 Q245 20 245 55 V95 Q245 130 210 130 H160 Q148 130 142 118 Q130 98 118 118 Q112 130 100 130 H50 Q15 130 15 95 V55 Q15 20 50 20 Z" fill="url(#lg)" stroke="#ff9f43" stroke-width="10"/>
+      <g transform="translate(100 72)"><path d="M-12 0 L-23 -8 L-23 8 Z" fill="#f4b400"/><ellipse rx="14" ry="9" fill="#ffd23f"/><circle cx="7" cy="-2" r="2.6" fill="#fff"/><circle cx="7.6" cy="-2" r="1.4" fill="#222"/></g>
+      <g transform="translate(168 88) scale(.9)"><path d="M-12 0 L-23 -8 L-23 8 Z" fill="#ff8a2a"/><ellipse rx="13" ry="8" fill="#ff8a2a"/><ellipse cx="3" rx="2.4" ry="7.4" fill="#fff"/><ellipse cx="-6" rx="2.2" ry="6.2" fill="#fff"/><circle cx="7" cy="-2" r="2.4" fill="#fff"/><circle cx="7.6" cy="-2" r="1.3" fill="#222"/></g>
+      <circle cx="150" cy="50" r="5" fill="none" stroke="#fff" stroke-width="2" opacity=".8"/><circle cx="160" cy="38" r="3" fill="none" stroke="#fff" stroke-width="2" opacity=".8"/>
+      <path d="M40 40 Q50 30 70 30" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none" opacity=".35"/>
+    </svg>
+    <p>Take turns finding the hidden sea animal in 5 dives. Fastest total time wins!</p>
+    <div class="label">How many divers?</div>
+    <div class="count" id="count">
+      <button data-n="1">1</button><button data-n="2" class="sel">2</button><button data-n="3">3</button><button data-n="4">4</button>
+    </div>
+    <button class="btn" id="startBtn">Start</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="game" class="screen">
+    <div class="hud"><span class="chip" id="hudPlayer">Player 1</span><span class="chip" id="hudRound">Dive 1 / 5</span><span class="chip time" id="hudTime">0.0 s</span></div>
+    <div class="find"><svg id="findIcon" viewBox="-40 -36 80 72"></svg><div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px"><span id="findBadge"></span><span class="fname" id="findName"></span></div></div>
+    <div id="sceneWrap"><svg id="scene" viewBox="0 0 400 320" aria-label="Underwater scene"></svg><div id="toast">Not that one. Keep looking!</div></div>
+  </div>
+
+  <!-- END -->
+  <div id="end" class="screen">
+    <h1>Dive complete!</h1>
+    <p id="endMsg"></p>
+    <div class="results" id="results"></div>
+    <div class="btnrow">
+      <button class="btn" id="againBtn">Play again</button>
+      <button class="btn ghost" id="changeBtn">Change divers</button>
+    </div>
+  </div>
+</div>
+
+<div id="overlay" class="overlay"><div class="card" id="card"></div></div>
+
+<script>
+(function(){
+"use strict";
+const ROUNDS = 5;
+const $ = id => document.getElementById(id);
+const rnd = (a,b) => a + Math.random()*(b-a);
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+const shuffle = arr => { for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; };
+const fmt = ms => (ms/1000).toFixed(1) + ' s';
+
+/* ---------- drawings (each centered on 0,0, facing right) ---------- */
+function fish(body, tail, fin, o){
+  o = o || {}; const rx = o.rx||14, ry = o.ry||9;
+  return `<path d="M${-rx+2} 0 L${-rx-9} ${-ry+1} L${-rx-9} ${ry-1} Z" fill="${tail}"/>`+
+    `<path d="M${-rx*0.4} ${-ry+1} Q${rx*0.1} ${-ry-7} ${rx*0.5} ${-ry+2} Z" fill="${fin}"/>`+
+    `<ellipse rx="${rx}" ry="${ry}" fill="${body}"/>`+(o.extra||'')+
+    `<circle cx="${rx*0.55}" cy="${-ry*0.25}" r="2.4" fill="#fff"/><circle cx="${rx*0.6}" cy="${-ry*0.25}" r="1.3" fill="#1a1a1a"/>`;
+}
+function starPts(R, r){ let s=''; for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5, d=i%2?r:R; s+=(Math.cos(a)*d).toFixed(1)+','+(Math.sin(a)*d).toFixed(1)+' ';} return s; }
+
+const ART = {
+  yellow: () => fish('#ffd23f','#f4b400','#f4b400'),
+  blue: () => fish('#2f6fd6','#ffd23f','#1f4fa8',{extra:'<path d="M-7 -3 Q1 -7 9 -2" stroke="#123a7a" stroke-width="2" fill="none"/>'}),
+  clown: () => fish('#ff8a2a','#ff8a2a','#ff8a2a',{rx:13,ry:8,extra:'<ellipse cx="3" rx="2.4" ry="7.6" fill="#fff" stroke="#222" stroke-width=".7"/><ellipse cx="-6" rx="2.2" ry="6.4" fill="#fff" stroke="#222" stroke-width=".7"/>'}),
+  silver: () => fish('#d3dde2','#a9bac2','#a9bac2',{rx:10,ry:4.5,extra:'<line x1="-8" y1="0" x2="7" y2="0" stroke="#6fb7d6" stroke-width="1.2"/>'}),
+  purple: () => fish('#9b6bd6','#f5c542','#9b6bd6',{rx:11,ry:7}),
+  green: () => fish('#3fbf8f','#ff8fb3','#ff8fb3',{rx:15,ry:8.5,extra:'<path d="M-10 3 Q0 6 12 2" stroke="#ff8fb3" stroke-width="1.6" fill="none"/>'}),
+  butterfly: () => fish('#ffe14d','#ffe14d','#ffe14d',{rx:11,ry:10,extra:'<ellipse cx="6" rx="2" ry="9" fill="#2b2b2b"/>'}),
+  crab: () => `<g stroke="#c0392b" stroke-width="2" stroke-linecap="round" fill="none"><path d="M-6 3 L-12 8 M-3 5 L-8 11 M6 3 L12 8 M3 5 L8 11 M-7 -2 L-12 -7 M7 -2 L12 -7 M-3 -4 L-3 -9 M3 -4 L3 -9"/></g>`+
+    `<circle cx="-13" cy="-9" r="3.6" fill="#e74c3c"/><circle cx="13" cy="-9" r="3.6" fill="#e74c3c"/><ellipse rx="9.5" ry="6" fill="#e74c3c"/>`+
+    `<circle cx="-3" cy="-10" r="1.9" fill="#fff"/><circle cx="3" cy="-10" r="1.9" fill="#fff"/><circle cx="-3" cy="-10" r="1" fill="#222"/><circle cx="3" cy="-10" r="1" fill="#222"/>`,
+  star: () => `<polygon points="${starPts(12,5)}" fill="#ff9248" stroke="#e5702a" stroke-width="1"/><circle cx="0" cy="-5" r="1" fill="#ffd2a8"/><circle cx="4" cy="1" r="1" fill="#ffd2a8"/><circle cx="-4" cy="1" r="1" fill="#ffd2a8"/>`,
+
+  turtle: () => `<path d="M6 7 Q17 18 11 23 Q4 16 -1 9 Z" fill="#8fb35a"/><path d="M6 -7 Q17 -18 11 -23 Q4 -16 -1 -9 Z" fill="#8fb35a"/>`+
+    `<path d="M-11 6 Q-17 14 -21 10 Q-17 6 -14 3Z" fill="#8fb35a"/><path d="M-11 -6 Q-17 -14 -21 -10 Q-17 -6 -14 -3Z" fill="#8fb35a"/>`+
+    `<ellipse cx="21" cy="0" rx="7.5" ry="5.5" fill="#a5c86e"/><circle cx="24" cy="-2.3" r="1.5" fill="#1a1a1a"/><circle cx="24" cy="2.3" r="1.5" fill="#1a1a1a"/>`+
+    `<ellipse rx="17" ry="12.5" fill="#5e7f2e" stroke="#435c1f" stroke-width="1.6"/>`+
+    `<path d="M-6 -5 L0 -8 L6 -5 L6 3 L0 6 L-6 3 Z" fill="#7ea041"/><ellipse cx="-11" cy="0" rx="3.5" ry="4.5" fill="#7ea041"/><ellipse cx="11" cy="0" rx="3.5" ry="4.5" fill="#7ea041"/><ellipse cx="0" cy="-9.5" rx="4" ry="2" fill="#7ea041"/><ellipse cx="0" cy="9.5" rx="4" ry="2" fill="#7ea041"/>`,
+  seahorse: () => `<path d="M-1 12 C-1 22 -11 24 -11 17 C-11 13 -6 13 -6 17" stroke="#e08a2e" stroke-width="4" stroke-linecap="round" fill="none"/>`+
+    `<path d="M-6 2 Q-12 4 -8 9 Z" fill="#ffc07a"/>`+
+    `<path d="M0 -20 C9 -20 11 -10 7 -4 C12 2 10 11 1 14 C-4 15 -6 12 -6 8 C-8 2 -8 -6 -6 -11 C-5 -16 -4 -20 0 -20 Z" fill="#f4a340"/>`+
+    `<path d="M5 -17 L16 -15 L16 -11.5 L5 -12 Z" fill="#f4a340"/>`+
+    `<path d="M-3 -20 L-2 -25 L1 -21 L3 -25 L4 -20" fill="#e08a2e"/>`+
+    `<path d="M0 -2 Q5 0 6 4 M-2 4 Q3 6 3 10" stroke="#e08a2e" stroke-width="1.2" fill="none"/>`+
+    `<circle cx="2" cy="-15" r="2.4" fill="#fff"/><circle cx="2.6" cy="-15" r="1.3" fill="#1a1a1a"/>`,
+  banded: () => fish('#fff2e6','#c0392b','#c0392b',{rx:12,ry:8,extra:'<line x1="-6" y1="-7" x2="-6" y2="7" stroke="#c0392b" stroke-width="2.2"/><line x1="-1" y1="-7.8" x2="-1" y2="7.8" stroke="#c0392b" stroke-width="2.2"/><line x1="4" y1="-7" x2="4" y2="7" stroke="#c0392b" stroke-width="2.2"/>'}),
+  glass: () => fish('rgba(255,190,225,.55)','rgba(240,150,200,.55)','rgba(240,150,200,.55)',{rx:10,ry:6}),
+  darkfish: () => fish('#3b4b5c','#2c3a48','#2c3a48',{rx:15,ry:7}),
+  puffer: () => `<path d="M-9 0 L-16 -5 L-16 5 Z" fill="#5f7d36"/><circle r="10" fill="#7a9a4a" stroke="#5f7d36" stroke-width="1"/>`+
+    `<circle cx="-3" cy="-4" r="1.6" fill="#4a6328"/><circle cx="2" cy="3" r="1.6" fill="#4a6328"/><circle cx="-4" cy="4" r="1.3" fill="#4a6328"/><circle cx="3" cy="-6" r="1.2" fill="#4a6328"/>`+
+    `<circle cx="5" cy="-2" r="2.4" fill="#fff"/><circle cx="5.6" cy="-2" r="1.3" fill="#1a1a1a"/>`,
+  flatfish: () => `<ellipse rx="17" ry="10" fill="#cfb07a"/><path d="M-16 0 L-22 -5 L-22 5 Z" fill="#cfb07a"/><ellipse rx="13" ry="7.5" fill="#dcc08a" stroke="#c7a873" stroke-width="1"/>`+
+    `<circle cx="-4" cy="-2" r="1.6" fill="#ead2a2"/><circle cx="-1" cy="3" r="1.4" fill="#ead2a2"/><circle cx="7" cy="-2.5" r="1.7" fill="#3a2a1a"/><circle cx="8" cy="2.5" r="1.7" fill="#3a2a1a"/>`,
+  anemone: () => { let s='<g stroke="#ff9fb8" stroke-width="2.6" stroke-linecap="round" fill="none">';
+      for(let i=0;i<9;i++){const x=-10+i*2.5, xe=-14+i*3.5; s+=`<path d="M${x} 0 Q${(x+xe)/2+(i%2?3:-3)} -9 ${xe} -17"/>`;}
+      return s+'</g><ellipse cx="0" cy="2" rx="12" ry="4.5" fill="#d9667f"/>'; },
+  octopus: (camo) => { const c = camo?'#9c8a76':'#e0607e', c2 = camo?'#7d6d5b':'#f08aa2';
+      let s=`<g stroke="${c}" stroke-width="3.6" stroke-linecap="round" fill="none">`;
+      for(let i=0;i<8;i++){const x0=-9+i*18/7, xe=-21+i*42/7, ye=19+(i%2)*3, cx=(x0+xe)/2+(i%2?5:-5); s+=`<path d="M${x0.toFixed(1)} 2 Q${cx.toFixed(1)} 14 ${xe.toFixed(1)} ${ye}"/>`;}
+      return s+`</g><ellipse cx="0" cy="-7" rx="12.5" ry="13" fill="${c}"/><ellipse cx="-4" cy="-13" rx="3" ry="2" fill="${c2}"/><circle cx="5" cy="-14" r="1.8" fill="${c2}"/><circle cx="-7" cy="-6" r="1.5" fill="${c2}"/>`+
+      '<circle cx="-4.5" cy="-4" r="3" fill="#fff"/><circle cx="4.5" cy="-4" r="3" fill="#fff"/><circle cx="-4" cy="-3.6" r="1.5" fill="#1a1a1a"/><circle cx="5" cy="-3.6" r="1.5" fill="#1a1a1a"/>'; },
+  manta: () => `<path d="M-14 0 L-30 0" stroke="#34465a" stroke-width="1.8" stroke-linecap="round"/>`+
+    `<path d="M18 0 C12 -4 4 -10 -6 -26 C-6 -10 -10 -4 -14 0 C-10 4 -6 10 -6 26 C4 10 12 4 18 0 Z" fill="#34465a" stroke="#4d6680" stroke-width="1.2"/>`+
+    `<path d="M17 -3 Q22 -4 23 -8 M17 3 Q22 4 23 8" stroke="#34465a" stroke-width="3" stroke-linecap="round" fill="none"/>`+
+    `<ellipse cx="0" cy="-9" rx="4" ry="6" fill="#dfe8ee" opacity=".55"/><ellipse cx="0" cy="9" rx="4" ry="6" fill="#dfe8ee" opacity=".55"/>`+
+    `<circle cx="14" cy="-3.5" r="1.4" fill="#fff"/><circle cx="14" cy="3.5" r="1.4" fill="#fff"/>`,
+  lionfish: () => { let s='<path d="M-10 -6 L-10 -18 L8 -20 L10 -6 Z" fill="#b8452d" opacity=".25"/>';
+      for(let k=0;k<7;k++){const x1=-9+k*3, x2=x1-3+k*0.4, y2=-18+Math.abs(k-3)*1.3; s+=`<line x1="${x1}" y1="-6" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${k%2?'#f6e6d6':'#b8452d'}" stroke-width="1.8" stroke-linecap="round"/>`;}
+      s+='<path d="M2 3 L-12 17 L-4 21 L4 18 Z" fill="#b8452d" opacity=".25"/>';
+      for(let k=0;k<6;k++){const a=Math.PI*(0.42+k*0.09), x2=2+18*Math.cos(a), y2=3+18*Math.sin(a); s+=`<line x1="2" y1="3" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${k%2?'#f6e6d6':'#b8452d'}" stroke-width="1.8" stroke-linecap="round"/>`;}
+      s+='<path d="M-12 0 L-22 -7 L-22 7 Z" fill="#f6e6d6" stroke="#b8452d" stroke-width="1.2"/><ellipse rx="14" ry="7.5" fill="#f6e6d6" stroke="#b8452d" stroke-width=".8"/>';
+      [-9,-5,-1,3,7].forEach(x=>{const h=7.5*Math.sqrt(1-(x/14)*(x/14))*0.92; s+=`<line x1="${x}" y1="${(-h).toFixed(1)}" x2="${x}" y2="${h.toFixed(1)}" stroke="#b8452d" stroke-width="2.1"/>`;});
+      return s+'<circle cx="9" cy="-2" r="2.3" fill="#fff"/><circle cx="9.5" cy="-2" r="1.3" fill="#1a1a1a"/>'; },
+  jelly: (camo) => { let s=`<g opacity="${camo?.5:1}"><g stroke="#e98ac9" stroke-width="1.8" fill="none" stroke-linecap="round">`;
+      for(let i=0;i<5;i++){const x=-10+i*5; s+=`<path d="M${x} -1 q3 6 0 12 q-3 6 0 12"/>`;}
+      return s+'</g><path d="M-15 -1 C-15 -21 15 -21 15 -1 Q11.3 2 7.5 -1 Q3.8 2 0 -1 Q-3.8 2 -7.5 -1 Q-11.3 2 -15 -1 Z" fill="#f5b3df" stroke="#d46fb5" stroke-width="1.2" opacity=".95"/>'+
+      '<ellipse cx="-5" cy="-12" rx="4" ry="2.5" fill="#fff" opacity=".7"/></g>'; },
+  eel: () => `<ellipse cx="0" cy="15" rx="25" ry="12" fill="#737a85"/><ellipse cx="-8" cy="10" rx="8" ry="3" fill="#8f97a3"/>`+
+    `<ellipse cx="5" cy="9" rx="8.5" ry="4.5" fill="#2b2f36"/>`+
+    `<path d="M5 9 C8 -1 -3 -7 4 -15" stroke="#6f9a3b" stroke-width="9" stroke-linecap="round" fill="none"/>`+
+    `<circle cx="3" cy="2" r="1.3" fill="#4f7329"/><circle cx="1" cy="-7" r="1.3" fill="#4f7329"/><circle cx="6" cy="-4" r="1.1" fill="#4f7329"/>`+
+    `<ellipse cx="9" cy="-18" rx="9.5" ry="6" fill="#7fae46" transform="rotate(-18 9 -18)"/>`+
+    `<path d="M13 -18 L19 -17" stroke="#2b3b18" stroke-width="1.6" stroke-linecap="round"/>`+
+    `<circle cx="8" cy="-21.5" r="2.1" fill="#fff"/><circle cx="8.5" cy="-21.5" r="1.1" fill="#1a1a1a"/>`,
+  stingray: (camo) => { const b = camo?'#d6b981':'#a68560', e = camo?'#bf9f6a':'#8a6a4a', sp = camo?'#e8cf9c':'#c4a57e';
+    return `<g transform="translate(10 0)"><path d="M-12 0 Q-26 2 -38 6" stroke="${e}" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M-27 1 L-31 -2 L-30 3 Z" fill="#6b4f33"/>`+
+    `<ellipse cx="2" cy="0" rx="16" ry="14" fill="${b}" stroke="${e}" stroke-width="1.2"/>`+
+    `<circle cx="-4" cy="-5" r="2" fill="${sp}"/><circle cx="-2" cy="6" r="2.4" fill="${sp}"/><circle cx="5" cy="-8" r="1.6" fill="${sp}"/><circle cx="-8" cy="1" r="1.6" fill="${sp}"/>`+
+    `<circle cx="11" cy="-4" r="1.7" fill="#3a2a1a"/><circle cx="11" cy="4" r="1.7" fill="#3a2a1a"/></g>`; }
+};
+
+const TARGETS = {
+  turtle:   {name:'sea turtle', kind:'rare',   zone:'water', r:26, look:['puffer','green','puffer'], camo:'mossrock', tip:'Watch from a distance. Never touch or chase a turtle.'},
+  seahorse: {name:'seahorse',   kind:'rare',   zone:'low',   r:24, look:['clown','butterfly'], camo:'fans', tip:'Seahorses hold on to sea plants with their curly tails.'},
+  octopus:  {name:'octopus',    kind:'rare',   zone:'low',   r:23, look:['anemone','puffer'], camo:'rocks', tip:'An octopus can change color to blend in, like this one!'},
+  manta:    {name:'manta ray',  kind:'rare',   zone:'water', r:28, look:['darkfish','darkfish','stingray'], camo:null, tip:'Mantas are gentle giants. Give them plenty of space.'},
+  lionfish: {name:'lionfish',   kind:'danger', zone:'water', r:23, look:['banded','banded','clown'], camo:'redcoral', tip:'Its spines can sting. Look, but never touch.'},
+  jelly:    {name:'jellyfish',  kind:'danger', zone:'water', r:22, look:['glass','glass','anemone'], camo:null, tip:'Jellyfish can be see-through and they sting. Swim around them.'},
+  eel:      {name:'moray eel',  kind:'danger', zone:'floor', r:26, look:['green','puffer'], camo:'holes', tip:'Eels hide in rocks and can bite. Keep hands out of holes.'},
+  stingray: {name:'stingray',   kind:'danger', zone:'floor', r:28, look:['flatfish','flatfish','flatfish'], camo:'sand', tip:'Rays hide under sand and the tail has a barb. Never touch.'}
+};
+// Ordinary reef life. A scene never contains a second animal of the target's species,
+// so every dive has exactly one right answer.
+const DECOYS = [
+  {id:'yellow',zone:'water',r:18},{id:'blue',zone:'water',r:18},{id:'clown',zone:'water',r:17},
+  {id:'silver',zone:'water',r:13},{id:'purple',zone:'water',r:15},{id:'green',zone:'water',r:19},
+  {id:'butterfly',zone:'water',r:16},{id:'banded',zone:'water',r:17},{id:'darkfish',zone:'water',r:19},
+  {id:'puffer',zone:'water',r:15},{id:'glass',zone:'water',r:14},
+  {id:'crab',zone:'floor',r:14},{id:'star',zone:'floor',r:12},{id:'flatfish',zone:'floor',r:18},{id:'anemone',zone:'floor',r:15}
+];
+const DECOY_BY_ID = Object.fromEntries(DECOYS.map(d=>[d.id,d]));
+
+const ICON_RARE = '<svg viewBox="-10 -10 20 20"><path d="M0 -9 L2.6 -3 L9 -2.8 L4 1.5 L5.6 8 L0 4.5 L-5.6 8 L-4 1.5 L-9 -2.8 L-2.6 -3 Z" fill="#fff" stroke="#b5641f" stroke-width="1"/></svg>';
+const ICON_DANGER = '<svg viewBox="-10 -10 20 20"><path d="M0 -9 L9.5 7.5 L-9.5 7.5 Z" fill="#fff" stroke-linejoin="round"/><line x1="0" y1="-3" x2="0" y2="2" stroke="#e8553e" stroke-width="2.4" stroke-linecap="round"/><circle cx="0" cy="5" r="1.3" fill="#e8553e"/></svg>';
+const TROPHY = '<svg viewBox="-14 -14 28 28"><path d="M-8 -11 H8 V-3 Q8 5 0 6 Q-8 5 -8 -3 Z" fill="#b5641f"/><path d="M-8 -8 Q-13 -8 -12 -3 Q-11 1 -7 1 M8 -8 Q13 -8 12 -3 Q11 1 7 1" stroke="#b5641f" stroke-width="2" fill="none"/><rect x="-2" y="6" width="4" height="4" fill="#b5641f"/><rect x="-7" y="10" width="14" height="3" rx="1" fill="#b5641f"/></svg>';
+const badge = k => k==='rare' ? `<span class="badge rare">${ICON_RARE}RARE</span>` : `<span class="badge danger">${ICON_DANGER}DANGER</span>`;
+const headline = t => t.kind==='rare' ? `Find the rare ${t.name}!` : `Spot the dangerous ${t.name}!`;
+
+/* ---------- lens geometry ---------- */
+const LENS = 'M76 16 H324 Q384 16 384 76 V240 Q384 300 324 300 H245 Q228 300 220 282 Q200 252 180 282 Q172 300 155 300 H76 Q16 300 16 240 V76 Q16 16 76 16 Z';
+function inLens(x, y, m){
+  m += 5;
+  if (x < 16+m || x > 384-m || y < 16+m || y > 300-m) return false;
+  const dx = Math.max(76-x, 0, x-324), dy = Math.max(76-y, 0, y-240);
+  if (dx>0 && dy>0 && Math.hypot(dx,dy) > 60-m) return false;
+  if (x > 150-m*0.6 && x < 250+m*0.6 && y+m > 262) return false; // nose bridge
+  return true;
+}
+const ZONES = { water:[48,238], low:[195,248], floor:[252,284] };
+
+/* ---------- state ---------- */
+let N = 2, S = null;
+let tStart = 0, running = false, hintTimer = null, toastTimer = null;
+
+function pickTargets(){
+  const rare = shuffle(Object.keys(TARGETS).filter(k=>TARGETS[k].kind==='rare'));
+  const dang = shuffle(Object.keys(TARGETS).filter(k=>TARGETS[k].kind==='danger'));
+  const chosen = [rare.pop(), rare.pop(), dang.pop(), dang.pop()];
+  chosen.push(pick(rare.concat(dang)));
+  return shuffle(chosen);
+}
+
+/* ---------- scene builder: built from the answer outward ---------- */
+// lensR keeps the drawing inside the mask; keepR is the space nothing else may enter
+function place(zone, lensR, keepR, placed, gap, tries){
+  const [y0,y1] = ZONES[zone];
+  for(let i=0;i<tries;i++){
+    const x = rnd(30,370), y = rnd(y0,y1);
+    if(!inLens(x,y,lensR)) continue;
+    if(placed.some(p => Math.hypot(p.x-x,p.y-y) < p.r + keepR + gap)) continue;
+    return {x,y,r:keepR};
+  }
+  return null;
+}
+const rock = (x,y,rx,ry,c,c2) => `<ellipse cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" rx="${rx.toFixed(0)}" ry="${ry.toFixed(0)}" fill="${c}"/><circle cx="${(x-rx*.3).toFixed(0)}" cy="${(y-ry*.3).toFixed(0)}" r="${(ry*.25).toFixed(1)}" fill="${c2}"/><circle cx="${(x+rx*.35).toFixed(0)}" cy="${(y+ry*.1).toFixed(0)}" r="${(ry*.2).toFixed(1)}" fill="${c2}"/>`;
+
+function buildScene(targetId, idx){
+  const T = TARGETS[targetId];
+  const sc = [0.95,0.86,0.78,0.72,0.66][idx];
+  const nDec = [10,13,16,19,22][idx];
+  const nLook = [2,3,3,4,5][idx];
+  const placed = [];
+  const hitR = Math.max(32, T.r*sc + 6);
+  let tp = null;
+  while(!tp) tp = place(T.zone, T.r*sc, hitR, placed, 0, 3000);
+  placed.push(tp);
+  // look-alikes first, then a "trap" animal from the other list, then ordinary fish
+  const queue = [];
+  for(let i=0;i<nLook;i++) queue.push(T.look[i % T.look.length]);
+  if(idx >= 2){ const others = Object.keys(TARGETS).filter(k => k!==targetId); queue.push(pick(others)); }
+  for(let i=0;i<nDec;i++) queue.push(pick(DECOYS).id);
+  const decoys = [];
+  queue.forEach(id => {
+    if(id === targetId) return; // never a second right answer
+    const d = DECOY_BY_ID[id] || TARGETS[id], s = TARGETS[id] ? rnd(0.7,0.85) : rnd(0.75,1.1);
+    const p = place(d.zone, d.r*s, d.r*s, placed, 3, 300);
+    if(p){ placed.push(p); decoys.push({id, s, p, flip: Math.random()<0.5}); }
+  });
+  const flip = Math.random()<0.5 ? -1 : 1;
+
+  let g = `<defs><linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fd6ea"/><stop offset=".55" stop-color="#2a8fc4"/><stop offset="1" stop-color="#17689c"/></linearGradient></defs>`;
+  g += `<rect width="400" height="320" fill="url(#water)"/>`;
+  for(let i=0;i<4;i++){ const x = 40+i*95+rnd(-15,15); g += `<polygon points="${x},0 ${x+28},0 ${x+70},300 ${x+20},300" fill="#fff" opacity=".07"/>`; }
+  for(let i=0;i<6;i++){ const x = rnd(30,370), h = rnd(50,110);
+    g += `<path class="sway" style="animation-delay:${-rnd(0,4).toFixed(1)}s" d="M${x} 266 Q${x-9} ${266-h*0.33} ${x} ${266-h*0.55} Q${x+9} ${266-h*0.8} ${x} ${266-h}" stroke="#2c8a57" stroke-width="5" stroke-linecap="round" fill="none" opacity=".75"/>`; }
+  g += `<path d="M0 262 Q50 250 100 259 T200 257 T300 261 T400 254 V320 H0 Z" fill="#f0d39a"/>`;
+  g += `<path d="M30 285 q15 -4 30 0 M120 292 q15 -4 30 0 M260 288 q15 -4 30 0 M330 296 q12 -3 24 0" stroke="#d9b679" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+  for(let i=0;i<3;i++){ const x = rnd(40,360);
+    g += i%2 ? `<g transform="translate(${x.toFixed(0)} 262)"><path d="M-15 0 A15 11 0 0 1 15 0 Z" fill="#f3a35b"/><path d="M-9 -3 q3 -4 6 0 q3 -4 6 0" stroke="#d9823b" stroke-width="1.5" fill="none"/></g>`
+             : `<g transform="translate(${x.toFixed(0)} 263)"><path d="M0 0 V-22 M0 -12 L-8 -21 M0 -8 L8 -17 M-8 -21 V-27 M8 -17 V-23" stroke="#ff7f8a" stroke-width="4.5" stroke-linecap="round" fill="none"/></g>`; }
+  g += `<ellipse cx="${rnd(60,340).toFixed(0)}" cy="266" rx="18" ry="8" fill="#8a919b"/>`;
+
+  // camouflage scenery that matches the target
+  const floorX = () => rnd(30,370);
+  if(T.camo === 'rocks') for(let i=0;i<7;i++) g += rock(floorX(), rnd(225,268), rnd(11,20), rnd(8,13), pick(['#9c8a76','#8f7e6b','#a6957f']), '#7d6d5b');
+  if(T.camo === 'mossrock') for(let i=0;i<5;i++) g += rock(floorX(), rnd(240,268), rnd(14,22), rnd(9,13), pick(['#5e7f2e','#6b8a3a']), '#7ea041');
+  if(T.camo === 'holes') for(let i=0;i<6;i++){ const x=floorX(), y=rnd(262,278); g += `<ellipse cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" rx="24" ry="12" fill="#737a85"/><ellipse cx="${(x+4).toFixed(0)}" cy="${(y-6).toFixed(0)}" rx="8" ry="4.5" fill="#2b2f36"/>`; }
+  if(T.camo === 'fans') for(let i=0;i<7;i++){ const x=floorX(), y=rnd(255,268), h=rnd(30,55);
+    g += `<path class="sway" style="animation-delay:${-rnd(0,4).toFixed(1)}s" d="M${x.toFixed(0)} ${y.toFixed(0)} V${(y-h).toFixed(0)} M${x.toFixed(0)} ${(y-h*.4).toFixed(0)} L${(x-9).toFixed(0)} ${(y-h*.8).toFixed(0)} M${x.toFixed(0)} ${(y-h*.55).toFixed(0)} L${(x+9).toFixed(0)} ${(y-h*.95).toFixed(0)} M${(x-9).toFixed(0)} ${(y-h*.8).toFixed(0)} Q${(x-13).toFixed(0)} ${(y-h*1.05).toFixed(0)} ${(x-6).toFixed(0)} ${(y-h*1.1).toFixed(0)}" stroke="${pick(['#f4a340','#e08a2e','#f7b55e'])}" stroke-width="3" stroke-linecap="round" fill="none"/>`; }
+  if(T.camo === 'redcoral') for(let i=0;i<5;i++){ const x=floorX();
+    g += `<g transform="translate(${x.toFixed(0)} 263)"><path d="M0 0 V-26 M0 -14 L-9 -24 M0 -9 L9 -20 M-9 -24 V-32 M9 -20 V-28 M0 -26 L4 -33" stroke="${pick(['#c0392b','#e0603f','#f6e6d6'])}" stroke-width="3.5" stroke-linecap="round" fill="none"/></g>`; }
+  if(T.camo === 'sand') for(let i=0;i<6;i++) g += `<ellipse cx="${floorX().toFixed(0)}" cy="${rnd(266,286).toFixed(0)}" rx="${rnd(10,18).toFixed(0)}" ry="${rnd(4,7).toFixed(0)}" fill="#e2c48c"/>`;
+
+  decoys.forEach(o => {
+    g += `<g transform="translate(${o.p.x.toFixed(1)} ${o.p.y.toFixed(1)})"><g class="bob" style="animation-delay:${-rnd(0,3).toFixed(1)}s"><g transform="scale(${(o.flip?-o.s:o.s).toFixed(2)} ${o.s.toFixed(2)})">${ART[o.id]()}</g></g></g>`;
+  });
+  // the one right answer, drawn on top of every decoy
+  g += `<g id="tgt" transform="translate(${tp.x.toFixed(1)} ${tp.y.toFixed(1)})"><g class="bob"><g class="pop" id="tgtPop"><g transform="scale(${(flip*sc).toFixed(2)} ${sc.toFixed(2)})">${ART[targetId](true)}</g></g>`+
+       `<circle id="tgtHit" r="${hitR.toFixed(1)}" fill="#fff" fill-opacity="0" pointer-events="all"/></g></g>`;
+  g += `<circle id="hint" class="hint" cx="${tp.x.toFixed(1)}" cy="${tp.y.toFixed(1)}" r="${(hitR+16).toFixed(1)}" fill="none" stroke="#fff" stroke-width="3" opacity="0" pointer-events="none" style="display:none"/>`;
+
+  // foreground plants (taps pass straight through them)
+  let fg = '';
+  const strand = (x, top, w) => { const h = 300-top;
+    return `<path d="M${x.toFixed(1)} 300 Q${(x-7).toFixed(1)} ${(300-h*0.35).toFixed(1)} ${x.toFixed(1)} ${(300-h*0.6).toFixed(1)} Q${(x+7).toFixed(1)} ${(300-h*0.85).toFixed(1)} ${x.toFixed(1)} ${top.toFixed(1)}" stroke="#3aa36a" stroke-width="${w}" stroke-linecap="round" fill="none"/>`; };
+  if(idx >= 1){
+    const side = Math.random()<.5?-1:1;
+    fg += strand(tp.x + side*T.r*sc*0.45, tp.y - T.r*sc*0.6, 5);
+    if(idx >= 3 && T.r >= 26) fg += strand(tp.x - side*T.r*sc*0.5, tp.y - T.r*sc*0.3, 5);
+  }
+  if(T.camo === 'sand'){ // sand drifted over the edges of the ray
+    [[2,12],[22,-11]].forEach(([lx,ly]) => fg += `<ellipse cx="${(tp.x+flip*sc*lx).toFixed(1)}" cy="${(tp.y+sc*ly).toFixed(1)}" rx="${(9*sc).toFixed(1)}" ry="${(4*sc).toFixed(1)}" fill="#e2c48c"/>`);
+  }
+  [rnd(35,85), rnd(315,365)].forEach(x => { const h = rnd(40,90);
+    fg += `<path class="sway" d="M${x.toFixed(0)} 300 Q${(x-8).toFixed(0)} ${(300-h*0.4).toFixed(0)} ${x.toFixed(0)} ${(300-h*0.65).toFixed(0)} Q${(x+8).toFixed(0)} ${(300-h*0.85).toFixed(0)} ${x.toFixed(0)} ${(300-h).toFixed(0)}" stroke="#3aa36a" stroke-width="7" stroke-linecap="round" fill="none"/>`; });
+  for(let i=0;i<7;i++){ fg += `<circle class="bub" style="animation-duration:${rnd(5,9).toFixed(1)}s;animation-delay:${-rnd(0,9).toFixed(1)}s" cx="${rnd(40,360).toFixed(0)}" cy="${rnd(280,320).toFixed(0)}" r="${rnd(2,5).toFixed(1)}" fill="none" stroke="#fff" stroke-width="1.5"/>`; }
+  g += `<g pointer-events="none">${fg}<rect width="400" height="320" fill="#0d4d78" opacity="${[0.06,0.11,0.16,0.21,0.26][idx]}"/></g>`;
+
+  // dive-mask frame
+  g += `<g pointer-events="none"><path d="M0 0 H400 V320 H0 Z ${LENS}" fill="#22313d" fill-rule="evenodd"/>`+
+       `<path d="${LENS}" fill="none" stroke="#ff9f43" stroke-width="8"/>`+
+       `<path d="M40 70 Q48 36 92 30" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none" opacity=".22"/></g>`;
+  $('scene').innerHTML = g;
+  S.tp = tp; S.hitR = hitR; S.decoys = decoys;
+}
+
+/* ---------- flow ---------- */
+function show(id){ ['start','game','end'].forEach(s => $(s).classList.toggle('on', s===id)); }
+function overlay(html, solid){
+  const o = $('overlay'); o.className = 'overlay on ' + (solid?'solid':'soft');
+  $('card').innerHTML = html; $('card').style.animation='none'; void $('card').offsetWidth; $('card').style.animation='';
+}
+function closeOverlay(){ $('overlay').className = 'overlay'; }
+const who = () => N>1 ? `Player ${S.player+1}` : 'Diver';
+const bigIcon = id => `<svg class="bigicon" viewBox="-40 -36 80 72">${ART[id](true)}</svg>`;
+
+function newGame(){ S = {player:0, round:0, scores:Array(N).fill(0), targets:pickTargets()}; promptRound(); }
+
+function promptRound(){
+  const id = S.targets[S.round], T = TARGETS[id];
+  buildScene(id, S.round);
+  $('hudPlayer').textContent = who();
+  $('hudRound').textContent = `Dive ${S.round+1} / ${ROUNDS}`;
+  $('findIcon').innerHTML = ART[id](true);
+  $('findBadge').innerHTML = badge(T.kind);
+  $('findName').textContent = T.name;
+  show('game');
+  overlay(`<span class="pill">${N>1?who()+' · ':''}Dive ${S.round+1} of ${ROUNDS}</span>${bigIcon(id)}${badge(T.kind)}<h2>${headline(T)}</h2><p>It may be hiding. Watch out for look-alikes!</p><button class="btn" data-act="dive">Dive in!</button>`, true);
+}
+
+function dive(){
+  closeOverlay();
+  tStart = performance.now(); running = true;
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => { const h = $('hint'); if(h && running) h.style.display = ''; }, 30000);
+}
+
+function found(){
+  if(!running) return;
+  running = false; clearTimeout(hintTimer);
+  const t = performance.now() - tStart;
+  S.scores[S.player] += t;
+  const h = $('hint'); if(h) h.style.display='none';
+  $('tgtPop').classList.add('found');
+  const {x,y} = S.tp, ns = 'http://www.w3.org/2000/svg';
+  const ring = document.createElementNS(ns,'circle');
+  ring.setAttribute('cx',x); ring.setAttribute('cy',y); ring.setAttribute('r',S.hitR); ring.setAttribute('fill','none');
+  ring.setAttribute('stroke','#ffe27a'); ring.setAttribute('stroke-width','5'); ring.setAttribute('class','ring'); ring.setAttribute('pointer-events','none');
+  $('scene').insertBefore(ring, $('scene').lastElementChild);
+  const colors = ['#ffe27a','#ffffff','#ff9fb8','#8ef0c4'];
+  for(let i=0;i<12;i++){
+    const a = i*Math.PI/6, d = S.hitR+28, c = document.createElementNS(ns,'circle');
+    c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r',4); c.setAttribute('fill',colors[i%4]);
+    c.setAttribute('class','spark'); c.setAttribute('pointer-events','none');
+    c.style.setProperty('--dx',(Math.cos(a)*d).toFixed(0)+'px'); c.style.setProperty('--dy',(Math.sin(a)*d).toFixed(0)+'px');
+    $('scene').insertBefore(c, $('scene').lastElementChild);
+  }
+  updateClock();
+  const id = S.targets[S.round], T = TARGETS[id], last = S.round === ROUNDS-1;
+  setTimeout(() => {
+    overlay(`<h2 class="yay">Found it!</h2>${bigIcon(id)}${badge(T.kind)}<p><b>${T.name[0].toUpperCase()+T.name.slice(1)}.</b> ${T.tip}</p><span class="pill">+${fmt(t)}</span><button class="btn" data-act="next">${last?'Finish dive':'Next dive'}</button>`, false);
+  }, 900);
+}
+
+function next(){
+  S.round++;
+  if(S.round < ROUNDS) return promptRound();
+  if(S.player < N-1){
+    const done = S.player;
+    overlay(`<h2 class="yay">Great dive, Player ${done+1}!</h2><span class="pill">Your time: ${fmt(S.scores[done])}</span><p>Pass the screen to <b>Player ${done+2}</b>.</p><button class="btn" data-act="handoff">Player ${done+2}: Start</button>`, true);
+  } else { closeOverlay(); showEnd(); }
+}
+function handoff(){ S.player++; S.round = 0; promptRound(); }
+
+function showEnd(){
+  const best = Math.min(...S.scores.map(s => Math.round(s/100)));
+  if(N === 1){ $('endMsg').textContent = `Your total time: ${fmt(S.scores[0])}. Play again and try to beat it!`; }
+  else {
+    const winners = S.scores.map((s,i)=>Math.round(s/100)===best?i+1:0).filter(Boolean);
+    $('endMsg').textContent = winners.length>1 ? `It's a tie! Players ${winners.join(' and ')} win!` : `Player ${winners[0]} wins!`;
+  }
+  $('results').innerHTML = S.scores.map((s,i)=>({s,i})).sort((a,b)=>a.s-b.s).map(o => {
+    const win = N>1 && Math.round(o.s/100)===best;
+    return `<div class="row${win?' win':''}"><span class="who">${win?TROPHY:''}${N>1?'Player '+(o.i+1):'Your time'}</span><span>${fmt(o.s)}</span></div>`;
+  }).join('');
+  show('end');
+}
+
+function wrong(e){
+  if(!running) return;
+  const wrap = $('sceneWrap'), r = wrap.getBoundingClientRect(), rp = document.createElement('div');
+  rp.className = 'ripple'; rp.style.left = (e.clientX - r.left)+'px'; rp.style.top = (e.clientY - r.top)+'px';
+  wrap.appendChild(rp); setTimeout(()=>rp.remove(), 650);
+  const t = $('toast'); t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 1100);
+}
+
+function updateClock(){
+  if(!S) return;
+  const extra = running ? performance.now() - tStart : 0;
+  $('hudTime').textContent = fmt(S.scores[S.player] + extra);
+}
+(function loop(){ updateClock(); requestAnimationFrame(loop); })();
+
+/* ---------- events ---------- */
+$('scene').addEventListener('pointerdown', e => {
+  if(e.target && e.target.id === 'tgtHit') found(); else wrong(e);
+});
+$('card').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  ({dive, next, handoff})[b.dataset.act]();
+});
+$('count').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  N = +b.dataset.n; [...$('count').children].forEach(c => c.classList.toggle('sel', c===b));
+});
+$('startBtn').addEventListener('click', newGame);
+$('againBtn').addEventListener('click', newGame);
+$('changeBtn').addEventListener('click', () => show('start'));
+
+})();
+</script>
+</body>
+</html>
